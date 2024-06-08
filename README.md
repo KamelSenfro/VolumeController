@@ -5,7 +5,7 @@ This project leverages computer vision and audio control libraries to create a r
 ## Table of Contents
 - [Features](#features)
 - [Installation](#installation)
-- [API Endpoints](#api-endpoints)❌
+
 - [Configuration](#configuration)❌
 - [Dependencies](#dependencies)
 - [Code Explanation](#code-explanation)❌

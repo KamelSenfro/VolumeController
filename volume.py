@@ -27,7 +27,7 @@ cam = cv2.VideoCapture(0)
 cam.set(3, wCam)
 cam.set(4, hCam)
 
-# Signal handler to ensure clean exit
+# Signal handler for clean exit
 def signal_handler(sig, frame):
     print('Terminating...')
     cam.release()
@@ -38,10 +38,13 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # Main function
 def main():
+    """Main loop for hand detection and volume control."""
+
     with mp_hands.Hands(
         model_complexity=0,
         min_detection_confidence=0.75,
-        min_tracking_confidence=0.75) as hands:
+        min_tracking_confidence=0.75
+    ) as hands:
 
         prev_time = 0
 
@@ -50,11 +53,11 @@ def main():
             if not success:
                 continue
 
-            # Convert the BGR image to RGB and process with MediaPipe
+            # Convert BGR image to RGB for MediaPipe processing
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = hands.process(image_rgb)
 
-            # Initialize the list for landmarks
+            # Initialize list for landmarks
             lmList = []
 
             if results.multi_hand_landmarks:
@@ -65,44 +68,26 @@ def main():
                     cx, cy = int(lm.x * w), int(lm.y * h)
                     lmList.append([id, cx, cy])
 
-                # Volume control logic
+                # Volume control logic based on thumb and index finger distance
                 if lmList:
-                    x1, y1 = lmList[4][1], lmList[4][2]
-                    x2, y2 = lmList[8][1], lmList[8][2]
+                    x1, y1 = lmList[4][1], lmList[4][2]  # Thumb tip
+                    x2, y2 = lmList[8][1], lmList[8][2]  # Index finger tip
 
-                    # Draw markers only when landmarks are detected
+                    # Draw landmarks for visualization (optional)
                     cv2.circle(image, (x1, y1), 10, (255, 255, 255), cv2.FILLED)
                     cv2.circle(image, (x2, y2), 10, (255, 255, 255), cv2.FILLED)
-                    cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green line between fingertips
 
-                    length = math.hypot(x2 - x1, y2 - y1)
-                    if length < 50:
-                        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                    length = math.hypot(x2 - x1, y2 - y1)  # Calculate distance between fingertips
 
-                    vol = np.interp(length, [50, 220], [minVol, maxVol])
-                    volume.SetMasterVolumeLevel(vol, None)
-                    volBar = np.interp(length, [50, 220], [400, 150])
-                    volPer = np.interp(length, [50, 220], [0, 100])
+                    # Mute audio when distance is very small (fingers close together)
+                    if length < 30:
+                        volume.SetMasterVolumeLevel(minVol, None)
+                        cv2.line(image, (x1, y1), (x2, y2), (0, 0, 255), 2)  # Red line for mute indication
 
-                    # Draw volume bar and percentage
-                    bar_x = wCam - 85
-                    cv2.rectangle(image, (bar_x, 150), (bar_x + 35, 400), (255, 255, 255), 3)
-                    cv2.rectangle(image, (bar_x, int(volBar)), (bar_x + 35, 400), (255, 255, 255), cv2.FILLED)
-                    cv2.putText(image, f'{int(volPer)} %', (bar_x - 10, 450), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 3)
-
-            # Calculate and display FPS
-            current_time = time.time()
-            fps = 1 / (current_time - prev_time)
-            prev_time = current_time
-            cv2.putText(image, f'FPS: {int(fps)}', (wCam - 150, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-            # Display the image
-            cv2.imshow('Hand Detector', image)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    cam.release()
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    main()
+                    # Adjust volume proportionally based on fingertip distance (larger distance = higher volume)
+                    else:
+                        vol = np.interp(length, [30, 220], [minVol, maxVol])  # Linear interpolation for volume range
+                        volume.SetMasterVolumeLevel(vol, None)
+                        volBar = np.interp(length, [30, 220], [400, 150])  # Visual volume bar position
+                        volPer = np.
